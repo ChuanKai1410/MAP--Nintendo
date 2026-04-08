@@ -152,7 +152,12 @@ class _GameScreenState extends State<GameScreen> {
                colors: [Color(0xFFa1c4fd), Color(0xFFc2e9fb)],
                begin: Alignment.topCenter,
                end: Alignment.bottomCenter,
-             )
+             ),
+             image: DecorationImage(
+               image: AssetImage('images/Pokemon.jpg'),
+               fit: BoxFit.cover,
+               opacity: 0.4,
+             ),
            )
          ),
          
@@ -220,7 +225,12 @@ class _GameScreenState extends State<GameScreen> {
                colors: [Color(0xFFff9a9e), Color(0xFFfecfef)],
                begin: Alignment.topLeft,
                end: Alignment.bottomRight,
-             )
+             ),
+             image: DecorationImage(
+               image: AssetImage('images/Kirby.jpg'),
+               fit: BoxFit.cover,
+               opacity: 0.4,
+             ),
            )
         ),
         
@@ -286,7 +296,12 @@ class _GameScreenState extends State<GameScreen> {
                colors: [Color(0xFFfdfbfb), Color(0xFFebedee)],
                begin: Alignment.topLeft,
                end: Alignment.bottomRight,
-             )
+             ),
+             image: DecorationImage(
+               image: AssetImage('images/WMario.webp'),
+               fit: BoxFit.cover,
+               opacity: 0.4,
+             ),
            )
         ),
         
