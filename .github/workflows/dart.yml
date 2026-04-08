@@ -16,7 +16,7 @@ jobs:
       # 1. Setup the Flutter SDK instead of just Dart
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' # Or your current local version
+          flutter-version: '3.41.6' # Or your current local version
           channel: 'stable'
 
       # 2. Use 'flutter' commands instead of 'dart'
