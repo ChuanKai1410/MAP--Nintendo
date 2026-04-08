@@ -23,5 +23,10 @@ jobs:
       - name: Analyze project source
         run: flutter analyze
 
-      - name: Run tests
-        run: flutter test
+      - name: Run tests (if present)
+        run: |
+          if [ -d test ]; then
+            flutter test
+          else
+            echo "No test/ directory found; skipping flutter test."
+          fi
