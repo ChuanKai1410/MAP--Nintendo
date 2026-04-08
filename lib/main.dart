@@ -367,7 +367,7 @@ class _CharacterCard extends StatelessWidget {
       width: 100,
       height: 120,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.95),
+        color: color.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
