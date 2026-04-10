@@ -64,7 +64,18 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   Offset _trainerPos = Offset.zero;
   final List<Offset> _trainerHistory = []; 
   
-  final List<CharacterState> _characters = [];
+  List<CharacterState> _characters = [];
+  final Map<Room, List<CharacterState>> _roomCharacters = {
+    Room.pokemon: [],
+    Room.kirby: [],
+    Room.mario: [],
+  };
+  final Map<Room, bool> _roomCompleted = {
+    Room.pokemon: false,
+    Room.kirby: false,
+    Room.mario: false,
+  };
+
   final FocusNode _focusNode = FocusNode();
   final Random _random = Random();
   bool _isDoorOpen = false;
@@ -98,8 +109,12 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   }
 
   void _enterRoom(Room room, [bool spawnRight = true]) {
+    if (_characters.isNotEmpty && _characters.every((c) => c.isCaught)) {
+        _roomCompleted[currentRoom] = true;
+    }
+
     currentRoom = room;
-    _characters.clear();
+    _characters = _roomCharacters[room]!;
     _trainerHistory.clear();
     _isDoorOpen = false;
     _showCongrats = false;
@@ -110,21 +125,34 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
        _trainerPos = Offset(100, _screenSize.height / 2 - 60);
     }
 
-    if (room == Room.pokemon) {
-      _addChars(['Pikachu', 'Charizard'], ['⚡', '🔥'], [const Color(0xFFF6C839), const Color(0xFFE47044)], ['images/Pikachu.webp', 'images/Charizard.webp']);
-    } else if (room == Room.kirby) {
-      _addChars(['Kirby', 'Keeby', 'Kaiby'], ['🌟','🌟','🌟'], [Colors.pinkAccent, Colors.yellow[600]!, Colors.blueAccent], ['images/kirby.png', 'images/Keeby.webp', 'images/kaiby.png']);
-    } else {
-      _addChars(['Mario', 'Luigi', 'Yoshi', 'Peach', 'Shy Guy'], ['🍄', '🐢', '🦖', '👑', '👻'], [Colors.redAccent, Colors.green, Colors.lightGreen, Colors.pinkAccent, Colors.red], ['images/Mario.webp', 'images/Luigi.webp', 'images/Yoshi.webp', 'images/Peach.webp', 'images/Shy_Guy.webp']);
+    if (_characters.isEmpty) {
+      if (room == Room.pokemon) {
+        _addChars(room, ['Pikachu', 'Charizard'], ['⚡', '🔥'], [const Color(0xFFF6C839), const Color(0xFFE47044)], ['images/Pikachu.webp', 'images/Charizard.webp']);
+      } else if (room == Room.kirby) {
+        _addChars(room, ['Kirby', 'Keeby', 'Kaiby'], ['🌟','🌟','🌟'], [Colors.pinkAccent, Colors.yellow[600]!, Colors.blueAccent], ['images/kirby.png', 'images/Keeby.webp', 'images/kaiby.png']);
+      } else {
+        _addChars(room, ['Mario', 'Luigi', 'Yoshi', 'Peach', 'Shy Guy'], ['🍄', '🐢', '🦖', '👑', '👻'], [Colors.redAccent, Colors.green, Colors.lightGreen, Colors.pinkAccent, Colors.red], ['images/Mario.webp', 'images/Luigi.webp', 'images/Yoshi.webp', 'images/Peach.webp', 'images/Shy_Guy.webp']);
+      }
+      _characters = _roomCharacters[room]!;
+    }
+
+    if (_roomCompleted[room] == true) {
+       _isDoorOpen = true; 
+       double startX = _screenSize.width / 2 - (_characters.length * 110) / 2;
+       for (int i = 0; i < _characters.length; i++) {
+          _characters[i].pos = Offset(startX + i * 110 + 5, _screenSize.height / 2 - 60);
+          _characters[i].vel = Offset.zero;
+          _characters[i].isCaught = true; 
+       }
     }
   }
 
-  void _addChars(List<String> names, List<String> emojis, List<Color> colors, List<String> assets) {
+  void _addChars(Room room, List<String> names, List<String> emojis, List<Color> colors, List<String> assets) {
      for (int i=0; i<names.length; i++) {
         Offset startPos = _findValidSpawn();
         double angle = _random.nextDouble() * 2 * pi;
         Offset startVel = Offset(cos(angle), sin(angle)) * 100.0;
-        _characters.add(CharacterState(
+        _roomCharacters[room]!.add(CharacterState(
           pos: startPos, vel: startVel, name: names[i], emoji: emojis[i], color: colors[i], assetPath: assets[i]
         ));
      }
@@ -184,8 +212,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     if (allCaught) {
        if (currentRoom == Room.pokemon && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.mario, true);
        else if (currentRoom == Room.pokemon && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.kirby, false);
-       else if (currentRoom == Room.kirby && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.pokemon, true);
-       else if (currentRoom == Room.mario && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.pokemon, false);
+       else if (currentRoom == Room.kirby && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.pokemon, true);
+       else if (currentRoom == Room.mario && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.pokemon, false);
     }
 
     int caughtIndex = 1;
@@ -206,8 +234,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         if (nextRect.top < 0 || nextRect.bottom > _screenSize.height) hitY = true;
         
         List<Rect> activeDoors = [];
-        if (currentRoom == Room.pokemon || currentRoom == Room.mario) activeDoors.add(leftDoorRect);
-        if (currentRoom == Room.pokemon || currentRoom == Room.kirby) activeDoors.add(rightDoorRect);
+        if (currentRoom == Room.pokemon || currentRoom == Room.kirby) activeDoors.add(leftDoorRect);
+        if (currentRoom == Room.pokemon || currentRoom == Room.mario) activeDoors.add(rightDoorRect);
         
         for (Rect obs in [titleRect, ...activeDoors]) {
            if (nextRect.overlaps(obs)) {
@@ -223,13 +251,17 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         c.pos += c.vel * dt;
         c.pos = Offset(c.pos.dx.clamp(0.0, _screenSize.width - 100.0), c.pos.dy.clamp(0.0, _screenSize.height - 120.0));
       } else {
-        int targetHistoryIndex = caughtIndex * 15;
-        if (targetHistoryIndex < _trainerHistory.length) {
-          c.pos = _trainerHistory[targetHistoryIndex];
-        } else if (_trainerHistory.isNotEmpty) {
-          c.pos = _trainerHistory.last;
+        if (_roomCompleted[currentRoom] == true) {
+           // Queue in line at center (set in _enterRoom), do not move
+        } else {
+           int targetHistoryIndex = caughtIndex * 15;
+           if (targetHistoryIndex < _trainerHistory.length) {
+             c.pos = _trainerHistory[targetHistoryIndex];
+           } else if (_trainerHistory.isNotEmpty) {
+             c.pos = _trainerHistory.last;
+           }
+           caughtIndex++;
         }
-        caughtIndex++;
       }
     }
     
@@ -261,8 +293,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
              return Stack(
                children: [
                  _buildBackground(),
-                 if (currentRoom == Room.mario || currentRoom == Room.pokemon) _buildDoor('left'),
-                 if (currentRoom == Room.kirby || currentRoom == Room.pokemon) _buildDoor('right'),
+                 if (currentRoom == Room.kirby || currentRoom == Room.pokemon) _buildDoor('left'),
+                 if (currentRoom == Room.mario || currentRoom == Room.pokemon) _buildDoor('right'),
                  ..._characters.map((c) => Positioned(
                    left: c.pos.dx, top: c.pos.dy,
                    child: _CharacterCard(name: c.name, emoji: c.emoji, color: c.color, assetPath: c.assetPath),
