@@ -214,10 +214,15 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     }
 
     if (allCaught) {
-       if (currentRoom == Room.pokemon && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.mario, true);
-       else if (currentRoom == Room.pokemon && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.kirby, false);
-       else if (currentRoom == Room.kirby && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.pokemon, true);
-       else if (currentRoom == Room.mario && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.pokemon, false);
+       if (currentRoom == Room.pokemon && trainerRect.overlaps(leftDoorRect)) {
+         _enterRoom(Room.mario, true);
+       } else if (currentRoom == Room.pokemon && trainerRect.overlaps(rightDoorRect)) {
+         _enterRoom(Room.kirby, false);
+       } else if (currentRoom == Room.kirby && trainerRect.overlaps(leftDoorRect)) {
+         _enterRoom(Room.pokemon, true);
+       } else if (currentRoom == Room.mario && trainerRect.overlaps(rightDoorRect)) {
+         _enterRoom(Room.pokemon, false);
+       }
     }
 
     int caughtIndex = 1;
