@@ -240,8 +240,11 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         for (Rect obs in [titleRect, ...activeDoors]) {
            if (nextRect.overlaps(obs)) {
               Rect tryX = Rect.fromLTWH(nextPos.dx, c.pos.dy, 100, 120);
-              if (tryX.overlaps(obs)) hitX = true;
-              else hitY = true;
+              if (tryX.overlaps(obs)) {
+                hitX = true;
+              } else {
+                hitY = true;
+              }
            }
         }
 
