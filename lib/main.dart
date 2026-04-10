@@ -67,6 +67,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
   final List<CharacterState> _characters = [];
   final FocusNode _focusNode = FocusNode();
   final Random _random = Random();
+  bool _isDoorOpen = false;
+  bool _showCongrats = false;
 
   Rect get leftDoorRect => Rect.fromLTWH(10, _screenSize.height / 2 - 75, 60, 150);
   Rect get rightDoorRect => Rect.fromLTWH(_screenSize.width - 70, _screenSize.height / 2 - 75, 60, 150);
@@ -99,6 +101,8 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     currentRoom = room;
     _characters.clear();
     _trainerHistory.clear();
+    _isDoorOpen = false;
+    _showCongrats = false;
     
     if (spawnRight) {
        _trainerPos = Offset(_screenSize.width - 200, _screenSize.height / 2 - 60);
@@ -168,6 +172,14 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
 
     Rect trainerRect = Rect.fromLTWH(_trainerPos.dx, _trainerPos.dy, 100, 120);
     bool allCaught = _characters.every((c) => c.isCaught);
+
+    if (allCaught && !_isDoorOpen) {
+      _isDoorOpen = true;
+      _showCongrats = true;
+      Future.delayed(const Duration(seconds: 3), () {
+         if (mounted) setState(() => _showCongrats = false);
+      });
+    }
 
     if (allCaught) {
        if (currentRoom == Room.pokemon && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.mario, true);
@@ -260,6 +272,41 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
                    child: const _CharacterCard(name: 'Trainer', emoji: '🏃', color: Color(0xFF5D9CEC), assetPath: 'images/Pokemon_Trainer.webp')
                  ),
                  _buildRoomTitle(),
+                 if (_showCongrats)
+                    Align(
+                      alignment: Alignment.center,
+                      child: IgnorePointer(
+                        child: TweenAnimationBuilder(
+                          tween: Tween<double>(begin: 0.1, end: 1.0),
+                          duration: const Duration(milliseconds: 600),
+                          curve: Curves.elasticOut,
+                          builder: (context, double value, child) {
+                             return Transform.scale(
+                               scale: value,
+                               child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                                  decoration: BoxDecoration(
+                                     gradient: const LinearGradient(colors: [Color(0xFFFFD700), Color(0xFFFFA500)]),
+                                     borderRadius: BorderRadius.circular(30),
+                                     boxShadow: const [
+                                        BoxShadow(color: Colors.black45, blurRadius: 20, spreadRadius: 5)
+                                     ],
+                                     border: Border.all(color: Colors.white, width: 4)
+                                  ),
+                                  child: const Column(
+                                     mainAxisSize: MainAxisSize.min,
+                                     children: [
+                                        Text("🎉 CONGRATULATIONS! 🎉", style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.indigo, shadows: [Shadow(color: Colors.white, blurRadius: 5)])),
+                                        SizedBox(height: 10),
+                                        Text("The door is now open!", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+                                     ]
+                                  )
+                               )
+                             );
+                          }
+                        )
+                      )
+                    )
                ]
              );
           }
