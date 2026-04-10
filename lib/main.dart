@@ -36,6 +36,7 @@ class _GameScreenState extends State<GameScreen> {
   Room currentRoom = Room.pokemon;
   int position = 0; 
 
+  List<Offset> pokemonPositions = [];
   List<Offset> kirbyPositions = [];
   List<Offset> marioPositions = [];
   
@@ -45,6 +46,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    pokemonPositions.addAll(_generatePositions(2));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -56,11 +58,39 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
+  List<Offset> _generatePositions(int count) {
+    List<Offset> newPositions = [];
+    for (int i = 0; i < count; i++) {
+      Offset pos = const Offset(0, 0);
+      bool valid = false;
+      int attempts = 0;
+      
+      while (!valid && attempts < 100) {
+        pos = Offset(_random.nextDouble(), _random.nextDouble());
+        valid = true;
+        
+        if ((pos.dx < 0.25 || pos.dx > 0.75) && (pos.dy > 0.15 && pos.dy < 0.85)) {
+          valid = false;
+          attempts++;
+          continue;
+        }
+
+        for (var p in newPositions) {
+          if ((pos.dx - p.dx).abs() < 0.15 && (pos.dy - p.dy).abs() < 0.20) {
+            valid = false;
+            break;
+          }
+        }
+        attempts++;
+      }
+      newPositions.add(pos);
+    }
+    return newPositions;
+  }
+
   void _enterKirbyRoom() {
     kirbyPositions.clear();
-    for (int i = 0; i < 3; i++) {
-      kirbyPositions.add(Offset(_random.nextDouble(), _random.nextDouble()));
-    }
+    kirbyPositions.addAll(_generatePositions(3));
     setState(() {
       currentRoom = Room.kirby;
     });
@@ -68,9 +98,7 @@ class _GameScreenState extends State<GameScreen> {
 
   void _enterMarioRoom() {
     marioPositions.clear();
-    for (int i = 0; i < 5; i++) {
-      marioPositions.add(Offset(_random.nextDouble(), _random.nextDouble()));
-    }
+    marioPositions.addAll(_generatePositions(5));
     setState(() {
       currentRoom = Room.mario;
     });
@@ -87,6 +115,8 @@ class _GameScreenState extends State<GameScreen> {
         _enterMarioRoom();
       }
     } else if (currentRoom == Room.kirby) {
+       pokemonPositions.clear();
+       pokemonPositions.addAll(_generatePositions(2));
        setState(() {
          currentRoom = Room.pokemon;
          position = 2; 
@@ -105,6 +135,8 @@ class _GameScreenState extends State<GameScreen> {
         _enterKirbyRoom();
       }
     } else if (currentRoom == Room.mario) {
+       pokemonPositions.clear();
+       pokemonPositions.addAll(_generatePositions(2));
        setState(() {
          currentRoom = Room.pokemon;
          position = -2;
@@ -161,14 +193,17 @@ class _GameScreenState extends State<GameScreen> {
            )
          ),
          
-         Positioned(
-           left: constraints.maxWidth * 0.2, top: constraints.maxHeight * 0.3,
-           child: const _CharacterCard(name: 'Pikachu', emoji: '⚡', color: Color(0xFFF6C839), assetPath: 'images/Pikachu.webp'),
-         ),
-         Positioned(
-           right: constraints.maxWidth * 0.2, top: constraints.maxHeight * 0.4,
-           child: const _CharacterCard(name: 'Charizard', emoji: '🔥', color: Color(0xFFE47044), assetPath: 'images/Charizard.webp'),
-         ),
+         ...List.generate(pokemonPositions.length, (index) {
+            List<String> pokeChars = ['Pikachu', 'Charizard'];
+            List<String> pokeEmojis = ['⚡', '🔥'];
+            List<Color> pokeColors = [const Color(0xFFF6C839), const Color(0xFFE47044)];
+            List<String> pokeAssets = ['images/Pikachu.webp', 'images/Charizard.webp'];
+            return Positioned(
+              left: pokemonPositions[index].dx * (constraints.maxWidth - 120),
+              top: pokemonPositions[index].dy * (constraints.maxHeight - 250) + 130,
+              child: _CharacterCard(name: pokeChars[index%2], emoji: pokeEmojis[index%2], color: pokeColors[index%2], assetPath: pokeAssets[index%2]),
+            );
+         }),
          
          const Align(
            alignment: Alignment.centerLeft,
@@ -252,7 +287,7 @@ class _GameScreenState extends State<GameScreen> {
         ...List.generate(kirbyPositions.length, (index) {
            return Positioned(
              left: kirbyPositions[index].dx * (constraints.maxWidth - 120),
-             top: kirbyPositions[index].dy * (constraints.maxHeight - 140) + 20,
+             top: kirbyPositions[index].dy * (constraints.maxHeight - 250) + 130,
              child: _CharacterCard(name: kirbyChars[index%3], emoji: '🌟', color: kirbyColors[index%3], assetPath: kirbyAssets[index%3]),
            );
         }),
@@ -338,7 +373,7 @@ class _GameScreenState extends State<GameScreen> {
         ...List.generate(marioPositions.length, (index) {
            return Positioned(
              left: marioPositions[index].dx * (constraints.maxWidth - 120),
-             top: marioPositions[index].dy * (constraints.maxHeight - 140) + 20,
+             top: marioPositions[index].dy * (constraints.maxHeight - 250) + 130,
              child: _CharacterCard(name: marioChars[index%5], emoji: marioEmojis[index%5], color: marioColors[index%5], assetPath: marioAssets[index%5]),
            );
         }),
