@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math';
+import 'package:flutter/scheduler.dart';
 
 void main() {
   runApp(const MainApp());
@@ -32,21 +33,49 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
-  Room currentRoom = Room.pokemon;
-  int position = 0; 
+class CharacterState {
+  Offset pos;
+  Offset vel;
+  bool isCaught;
+  String name; 
+  String emoji; 
+  Color color; 
+  String? assetPath;
 
-  List<Offset> pokemonPositions = [];
-  List<Offset> kirbyPositions = [];
-  List<Offset> marioPositions = [];
+  CharacterState({
+    required this.pos, 
+    required this.vel, 
+    this.isCaught = false, 
+    required this.name, 
+    required this.emoji, 
+    required this.color, 
+    this.assetPath
+  });
+}
+
+class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateMixin {
+  Room currentRoom = Room.pokemon;
+  late Ticker _ticker;
+  Duration _lastTime = Duration.zero;
+  bool _isInitialized = false;
+  Size _screenSize = Size.zero;
+
+  final Set<LogicalKeyboardKey> _pressedKeys = {};
+  Offset _trainerPos = Offset.zero;
+  final List<Offset> _trainerHistory = []; 
   
-  final Random _random = Random();
+  final List<CharacterState> _characters = [];
   final FocusNode _focusNode = FocusNode();
+  final Random _random = Random();
+
+  Rect get leftDoorRect => Rect.fromLTWH(10, _screenSize.height / 2 - 75, 60, 150);
+  Rect get rightDoorRect => Rect.fromLTWH(_screenSize.width - 70, _screenSize.height / 2 - 75, 60, 150);
+  Rect get titleRect => Rect.fromLTWH(_screenSize.width / 2 - 180, 0, 360, 150);
 
   @override
   void initState() {
     super.initState();
-    pokemonPositions.addAll(_generatePositions(2));
+    _ticker = createTicker(_tick)..start();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
     });
@@ -54,94 +83,145 @@ class _GameScreenState extends State<GameScreen> {
   
   @override
   void dispose() {
+    _ticker.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  List<Offset> _generatePositions(int count) {
-    List<Offset> newPositions = [];
-    for (int i = 0; i < count; i++) {
-      Offset pos = const Offset(0, 0);
-      bool valid = false;
-      int attempts = 0;
+  void _initGame(Size size) {
+    _screenSize = size;
+    _trainerPos = Offset(size.width / 2, size.height / 2);
+    _enterRoom(Room.pokemon);
+    _isInitialized = true;
+  }
+
+  void _enterRoom(Room room, [bool spawnRight = true]) {
+    currentRoom = room;
+    _characters.clear();
+    _trainerHistory.clear();
+    
+    if (spawnRight) {
+       _trainerPos = Offset(_screenSize.width - 200, _screenSize.height / 2 - 60);
+    } else {
+       _trainerPos = Offset(100, _screenSize.height / 2 - 60);
+    }
+
+    if (room == Room.pokemon) {
+      _addChars(['Pikachu', 'Charizard'], ['⚡', '🔥'], [const Color(0xFFF6C839), const Color(0xFFE47044)], ['images/Pikachu.webp', 'images/Charizard.webp']);
+    } else if (room == Room.kirby) {
+      _addChars(['Kirby', 'Keeby', 'Kaiby'], ['🌟','🌟','🌟'], [Colors.pinkAccent, Colors.yellow[600]!, Colors.blueAccent], ['images/kirby.png', 'images/Keeby.webp', 'images/kaiby.png']);
+    } else {
+      _addChars(['Mario', 'Luigi', 'Yoshi', 'Peach', 'Shy Guy'], ['🍄', '🐢', '🦖', '👑', '👻'], [Colors.redAccent, Colors.green, Colors.lightGreen, Colors.pinkAccent, Colors.red], ['images/Mario.webp', 'images/Luigi.webp', 'images/Yoshi.webp', 'images/Peach.webp', 'images/Shy_Guy.webp']);
+    }
+  }
+
+  void _addChars(List<String> names, List<String> emojis, List<Color> colors, List<String> assets) {
+     for (int i=0; i<names.length; i++) {
+        Offset startPos = _findValidSpawn();
+        double angle = _random.nextDouble() * 2 * pi;
+        Offset startVel = Offset(cos(angle), sin(angle)) * 100.0;
+        _characters.add(CharacterState(
+          pos: startPos, vel: startVel, name: names[i], emoji: emojis[i], color: colors[i], assetPath: assets[i]
+        ));
+     }
+  }
+
+  Offset _findValidSpawn() {
+    for (int i=0; i<100; i++) {
+      Offset test = Offset(_random.nextDouble() * (_screenSize.width - 150) + 25, _random.nextDouble() * (_screenSize.height - 170) + 25);
+      Rect r = Rect.fromLTWH(test.dx, test.dy, 100, 120);
+      bool valid = true;
+      for (Rect obs in [titleRect, leftDoorRect, rightDoorRect, Rect.fromLTWH(_trainerPos.dx - 100, _trainerPos.dy - 100, 300, 320)]) {
+        if (r.overlaps(obs)) valid = false;
+      }
+      if (valid) return test;
+    }
+    return Offset(_screenSize.width/2, _screenSize.height/2);
+  }
+
+  void _tick(Duration elapsed) {
+    if (!_isInitialized) return;
+    double dt = (elapsed - _lastTime).inMicroseconds / 1000000.0;
+    _lastTime = elapsed;
+    if (dt > 0.1) dt = 0.1; 
+    
+    double dx = 0; double dy = 0;
+    if (_pressedKeys.contains(LogicalKeyboardKey.arrowUp) || _pressedKeys.contains(LogicalKeyboardKey.keyW)) dy -= 1;
+    if (_pressedKeys.contains(LogicalKeyboardKey.arrowDown) || _pressedKeys.contains(LogicalKeyboardKey.keyS)) dy += 1;
+    if (_pressedKeys.contains(LogicalKeyboardKey.arrowLeft) || _pressedKeys.contains(LogicalKeyboardKey.keyA)) dx -= 1;
+    if (_pressedKeys.contains(LogicalKeyboardKey.arrowRight) || _pressedKeys.contains(LogicalKeyboardKey.keyD)) dx += 1;
+
+    if (dx != 0 || dy != 0) {
+      double len = sqrt(dx*dx + dy*dy);
+      _trainerPos += Offset(dx/len * 200.0 * dt, dy/len * 200.0 * dt);
       
-      while (!valid && attempts < 100) {
-        pos = Offset(_random.nextDouble(), _random.nextDouble());
-        valid = true;
-        
-        if ((pos.dx < 0.25 || pos.dx > 0.75) && (pos.dy > 0.15 && pos.dy < 0.85)) {
-          valid = false;
-          attempts++;
+      _trainerPos = Offset(
+        _trainerPos.dx.clamp(0.0, _screenSize.width - 100.0),
+        _trainerPos.dy.clamp(0.0, _screenSize.height - 120.0),
+      );
+
+      if (_trainerHistory.isEmpty || (_trainerHistory.first - _trainerPos).distance > 5) {
+         _trainerHistory.insert(0, _trainerPos);
+         if (_trainerHistory.length > 500) _trainerHistory.removeLast();
+      }
+    }
+
+    Rect trainerRect = Rect.fromLTWH(_trainerPos.dx, _trainerPos.dy, 100, 120);
+    bool allCaught = _characters.every((c) => c.isCaught);
+
+    if (allCaught) {
+       if (currentRoom == Room.pokemon && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.mario, true);
+       else if (currentRoom == Room.pokemon && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.kirby, false);
+       else if (currentRoom == Room.kirby && trainerRect.overlaps(rightDoorRect)) _enterRoom(Room.pokemon, true);
+       else if (currentRoom == Room.mario && trainerRect.overlaps(leftDoorRect)) _enterRoom(Room.pokemon, false);
+    }
+
+    int caughtIndex = 1;
+    for (var c in _characters) {
+      if (!c.isCaught) {
+        Rect cRect = Rect.fromLTWH(c.pos.dx, c.pos.dy, 100, 120);
+        if (cRect.overlaps(trainerRect)) {
+          c.isCaught = true;
           continue;
         }
 
-        for (var p in newPositions) {
-          if ((pos.dx - p.dx).abs() < 0.15 && (pos.dy - p.dy).abs() < 0.20) {
-            valid = false;
-            break;
-          }
+        Offset nextPos = c.pos + c.vel * dt;
+        Rect nextRect = Rect.fromLTWH(nextPos.dx, nextPos.dy, 100, 120);
+        
+        bool hitX = false; bool hitY = false;
+
+        if (nextRect.left < 0 || nextRect.right > _screenSize.width) hitX = true;
+        if (nextRect.top < 0 || nextRect.bottom > _screenSize.height) hitY = true;
+        
+        List<Rect> activeDoors = [];
+        if (currentRoom == Room.pokemon || currentRoom == Room.mario) activeDoors.add(leftDoorRect);
+        if (currentRoom == Room.pokemon || currentRoom == Room.kirby) activeDoors.add(rightDoorRect);
+        
+        for (Rect obs in [titleRect, ...activeDoors]) {
+           if (nextRect.overlaps(obs)) {
+              Rect tryX = Rect.fromLTWH(nextPos.dx, c.pos.dy, 100, 120);
+              if (tryX.overlaps(obs)) hitX = true;
+              else hitY = true;
+           }
         }
-        attempts++;
+
+        if (hitX) c.vel = Offset(-c.vel.dx, c.vel.dy);
+        if (hitY) c.vel = Offset(c.vel.dx, -c.vel.dy);
+        
+        c.pos += c.vel * dt;
+        c.pos = Offset(c.pos.dx.clamp(0.0, _screenSize.width - 100.0), c.pos.dy.clamp(0.0, _screenSize.height - 120.0));
+      } else {
+        int targetHistoryIndex = caughtIndex * 15;
+        if (targetHistoryIndex < _trainerHistory.length) {
+          c.pos = _trainerHistory[targetHistoryIndex];
+        } else if (_trainerHistory.isNotEmpty) {
+          c.pos = _trainerHistory.last;
+        }
+        caughtIndex++;
       }
-      newPositions.add(pos);
     }
-    return newPositions;
-  }
-
-  void _enterKirbyRoom() {
-    kirbyPositions.clear();
-    kirbyPositions.addAll(_generatePositions(3));
-    setState(() {
-      currentRoom = Room.kirby;
-    });
-  }
-
-  void _enterMarioRoom() {
-    marioPositions.clear();
-    marioPositions.addAll(_generatePositions(5));
-    setState(() {
-      currentRoom = Room.mario;
-    });
-  }
-
-  void _moveLeft() {
-    if (currentRoom == Room.pokemon) {
-      if (position > -3) {
-        setState(() {
-          position--;
-        });
-      }
-      if (position <= -3) {
-        _enterMarioRoom();
-      }
-    } else if (currentRoom == Room.kirby) {
-       pokemonPositions.clear();
-       pokemonPositions.addAll(_generatePositions(2));
-       setState(() {
-         currentRoom = Room.pokemon;
-         position = 2; 
-       });
-    }
-  }
-
-  void _moveRight() {
-    if (currentRoom == Room.pokemon) {
-      if (position < 3) {
-        setState(() {
-          position++;
-        });
-      }
-      if (position >= 3) {
-        _enterKirbyRoom();
-      }
-    } else if (currentRoom == Room.mario) {
-       pokemonPositions.clear();
-       pokemonPositions.addAll(_generatePositions(2));
-       setState(() {
-         currentRoom = Room.pokemon;
-         position = -2;
-       });
-    }
+    
+    setState(() {});
   }
 
   @override
@@ -152,278 +232,104 @@ class _GameScreenState extends State<GameScreen> {
         autofocus: true,
         onKeyEvent: (KeyEvent event) {
           if (event is KeyDownEvent) {
-            if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-              _moveLeft();
-            } else if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-              _moveRight();
-            }
+             _pressedKeys.add(event.logicalKey);
+          } else if (event is KeyUpEvent) {
+             _pressedKeys.remove(event.logicalKey);
           }
         },
         child: LayoutBuilder(
           builder: (context, constraints) {
-             if (currentRoom == Room.kirby) {
-               return _buildKirbyRoom(constraints);
-             } else if (currentRoom == Room.mario) {
-               return _buildMarioRoom(constraints);
+             if (constraints.maxWidth == 0) return const SizedBox();
+             if (!_isInitialized || _screenSize.width != constraints.maxWidth || _screenSize.height != constraints.maxHeight) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _initGame(Size(constraints.maxWidth, constraints.maxHeight));
+                });
+                return const Center(child: CircularProgressIndicator());
              }
-             return _buildPokemonRoom(constraints);
+             return Stack(
+               children: [
+                 _buildBackground(),
+                 if (currentRoom == Room.mario || currentRoom == Room.pokemon) _buildDoor('left'),
+                 if (currentRoom == Room.kirby || currentRoom == Room.pokemon) _buildDoor('right'),
+                 ..._characters.map((c) => Positioned(
+                   left: c.pos.dx, top: c.pos.dy,
+                   child: _CharacterCard(name: c.name, emoji: c.emoji, color: c.color, assetPath: c.assetPath),
+                 )),
+                 Positioned(
+                   left: _trainerPos.dx, top: _trainerPos.dy,
+                   child: const _CharacterCard(name: 'Trainer', emoji: '🏃', color: Color(0xFF5D9CEC), assetPath: 'images/Pokemon_Trainer.webp')
+                 ),
+                 _buildRoomTitle(),
+               ]
+             );
           }
         ),
       ),
     );
   }
 
-  Widget _buildPokemonRoom(BoxConstraints constraints) {
-    double stepSize = constraints.maxWidth / 8;
-
-    return Stack(
-      children: [
-         Container(
-           decoration: const BoxDecoration(
-             gradient: LinearGradient(
-               colors: [Color(0xFFa1c4fd), Color(0xFFc2e9fb)],
-               begin: Alignment.topCenter,
-               end: Alignment.bottomCenter,
-             ),
-             image: DecorationImage(
-               image: AssetImage('images/Pokemon.jpg'),
-               fit: BoxFit.cover,
-               opacity: 0.4,
-             ),
-           )
-         ),
-         
-         ...List.generate(pokemonPositions.length, (index) {
-            List<String> pokeChars = ['Pikachu', 'Charizard'];
-            List<String> pokeEmojis = ['⚡', '🔥'];
-            List<Color> pokeColors = [const Color(0xFFF6C839), const Color(0xFFE47044)];
-            List<String> pokeAssets = ['images/Pikachu.webp', 'images/Charizard.webp'];
-            return Positioned(
-              left: pokemonPositions[index].dx * (constraints.maxWidth - 120),
-              top: pokemonPositions[index].dy * (constraints.maxHeight - 250) + 130,
-              child: _CharacterCard(name: pokeChars[index%2], emoji: pokeEmojis[index%2], color: pokeColors[index%2], assetPath: pokeAssets[index%2]),
-            );
-         }),
-         
-         const Align(
-           alignment: Alignment.centerLeft,
-           child: _Door(label: 'Mario Room'),
-         ),
-         const Align(
-           alignment: Alignment.centerRight,
-           child: _Door(label: 'Kirby Room'),
-         ),
-         
-         AnimatedPositioned(
-           duration: const Duration(milliseconds: 200),
-           curve: Curves.easeOut,
-           bottom: 50,
-           left: (constraints.maxWidth / 2) - 50 + (position * stepSize), 
-           child: const _CharacterCard(name: 'Trainer', emoji: '🏃', color: Color(0xFF5D9CEC), assetPath: 'images/Pokemon_Trainer.webp'),
-         ),
-         
-         Align(
-             alignment: Alignment.topCenter,
-             child: Container(
-                 decoration: const BoxDecoration(
-                     color: Colors.blueAccent,
-                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-                     boxShadow: [
-                         BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
-                     ]
-                 ),
-                 child: SafeArea(
-                     bottom: false,
-                     child: Padding(
-                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                         child: Column(
-                             mainAxisSize: MainAxisSize.min,
-                             children: [
-                                 const Text("Pokémon Room", 
-                                     textAlign: TextAlign.center, 
-                                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)
-                                 ),
-                                 const SizedBox(height: 4),
-                                 Text("Move: Left / Right Arrow Keys\nStep $position / ±3 to Change Rooms", 
-                                     textAlign: TextAlign.center, 
-                                     style: const TextStyle(fontSize: 14, color: Colors.white)
-                                 ),
-                             ]
-                         )
-                     )
-                 )
-             )
-         )
-      ]
+  Widget _buildBackground() {
+    String imagePath = 'images/Pokemon.jpg';
+    List<Color> gradient = [const Color(0xFFa1c4fd), const Color(0xFFc2e9fb)];
+    if (currentRoom == Room.kirby) {
+       imagePath = 'images/Kirby.jpg';
+       gradient = [const Color(0xFFff9a9e), const Color(0xFFfecfef)];
+    } else if (currentRoom == Room.mario) {
+       imagePath = 'images/WMario.webp';
+       gradient = [const Color(0xFFfdfbfb), const Color(0xFFebedee)];
+    }
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: gradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        image: DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover, opacity: 0.4),
+      )
     );
   }
 
-  Widget _buildKirbyRoom(BoxConstraints constraints) {
-    List<String> kirbyChars = ['Kirby', 'Keeby', 'Kaiby'];
-    List<Color> kirbyColors = [Colors.pinkAccent, Colors.yellow[600]!, Colors.blueAccent];
-    List<String> kirbyAssets = [
-      'images/kirby.png',
-      'images/Keeby.webp',
-      'images/kaiby.png'
-    ];
+  Widget _buildDoor(String side) {
+    bool isLeft = side == 'left';
+    String label = isLeft ? (currentRoom == Room.pokemon ? 'Mario Room' : 'Exit') : (currentRoom == Room.pokemon ? 'Kirby Room' : 'Exit');
+    return Positioned(
+      left: isLeft ? 10 : null,
+      right: isLeft ? null : 10,
+      top: _screenSize.height / 2 - 75,
+      child: _Door(label: label),
+    );
+  }
+
+  Widget _buildRoomTitle() {
+    String title = "Pokémon Room";
+    Color bg = Colors.blueAccent;
+    if (currentRoom == Room.kirby) { title = "Kirby Room"; bg = Colors.pinkAccent; }
+    else if (currentRoom == Room.mario) { title = "Mario Room"; bg = Colors.redAccent; }
     
-    return Stack(
-      children: [
-        Container(
-           decoration: const BoxDecoration(
-             gradient: LinearGradient(
-               colors: [Color(0xFFff9a9e), Color(0xFFfecfef)],
-               begin: Alignment.topLeft,
-               end: Alignment.bottomRight,
-             ),
-             image: DecorationImage(
-               image: AssetImage('images/Kirby.jpg'),
-               fit: BoxFit.cover,
-               opacity: 0.4,
-             ),
-           )
+    bool allCaught = _characters.every((c) => c.isCaught);
+    String subtitle = allCaught ? "The door is now open!" : "Catch all characters to unlock the door!";
+    
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Container(
+        width: 360,
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))]
         ),
-        
-        ...List.generate(kirbyPositions.length, (index) {
-           return Positioned(
-             left: kirbyPositions[index].dx * (constraints.maxWidth - 120),
-             top: kirbyPositions[index].dy * (constraints.maxHeight - 250) + 130,
-             child: _CharacterCard(name: kirbyChars[index%3], emoji: '🌟', color: kirbyColors[index%3], assetPath: kirbyAssets[index%3]),
-           );
-        }),
-        
-        const Align(
-           alignment: Alignment.centerLeft,
-           child: _Door(label: 'Exit'),
-        ),
-        
-        Align(
-           alignment: Alignment.centerLeft,
-           child: Padding(
-             padding: const EdgeInsets.only(left: 80.0),
-             child: const _CharacterCard(name: 'Trainer', emoji: '🏃', color: Color(0xFF5D9CEC), assetPath: 'images/Pokemon_Trainer.webp'),
-           ),
-        ),
-
-        Align(
-             alignment: Alignment.topCenter,
-             child: Container(
-                 decoration: const BoxDecoration(
-                     color: Colors.pinkAccent,
-                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-                     boxShadow: [
-                         BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
-                     ]
-                 ),
-                 child: SafeArea(
-                     bottom: false,
-                     child: Padding(
-                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                         child: Column(
-                             mainAxisSize: MainAxisSize.min,
-                             children: const [
-                                 Text("Kirby Room", 
-                                     textAlign: TextAlign.center, 
-                                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)
-                                 ),
-                                 SizedBox(height: 4),
-                                 Text("Press LEFT Arrow to go back!", 
-                                     textAlign: TextAlign.center, 
-                                     style: TextStyle(fontSize: 14, color: Colors.white)
-                                 ),
-                             ]
-                         )
-                     )
-                 )
-             )
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 15),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                const SizedBox(height: 4),
+                Text("WASD/Arrows to catch 'em all!\n$subtitle", textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.white)),
+              ]
+            )
+          )
         )
-      ],
-    );
-  }
-
-  Widget _buildMarioRoom(BoxConstraints constraints) {
-    List<String> marioChars = ['Mario', 'Luigi', 'Yoshi', 'Peach', 'Shy Guy'];
-    List<String> marioEmojis = ['🍄', '🐢', '🦖', '👑', '👻'];
-    List<Color> marioColors = [Colors.redAccent, Colors.green, Colors.lightGreen, Colors.pinkAccent, Colors.red];
-    List<String> marioAssets = [
-       'images/Mario.webp',
-       'images/Luigi.webp',
-       'images/Yoshi.webp',
-       'images/Peach.webp',
-       'images/Shy_Guy.webp',
-    ];
-
-    return Stack(
-      children: [
-        Container(
-           decoration: const BoxDecoration(
-             gradient: LinearGradient(
-               colors: [Color(0xFFfdfbfb), Color(0xFFebedee)],
-               begin: Alignment.topLeft,
-               end: Alignment.bottomRight,
-             ),
-             image: DecorationImage(
-               image: AssetImage('images/WMario.webp'),
-               fit: BoxFit.cover,
-               opacity: 0.4,
-             ),
-           )
-        ),
-        
-        ...List.generate(marioPositions.length, (index) {
-           return Positioned(
-             left: marioPositions[index].dx * (constraints.maxWidth - 120),
-             top: marioPositions[index].dy * (constraints.maxHeight - 250) + 130,
-             child: _CharacterCard(name: marioChars[index%5], emoji: marioEmojis[index%5], color: marioColors[index%5], assetPath: marioAssets[index%5]),
-           );
-        }),
-        
-        const Align(
-           alignment: Alignment.centerRight,
-           child: _Door(label: 'Exit'),
-        ),
-        
-        Align(
-           alignment: Alignment.centerRight,
-           child: Padding(
-             padding: const EdgeInsets.only(right: 80.0),
-             child: const _CharacterCard(name: 'Trainer', emoji: '🏃', color: Color(0xFF5D9CEC), assetPath: 'images/Pokemon_Trainer.webp'),
-           ),
-        ),
-
-        Align(
-             alignment: Alignment.topCenter,
-             child: Container(
-                 decoration: const BoxDecoration(
-                     color: Colors.redAccent,
-                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-                     boxShadow: [
-                         BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
-                     ]
-                 ),
-                 child: SafeArea(
-                     bottom: false,
-                     child: Padding(
-                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                         child: Column(
-                             mainAxisSize: MainAxisSize.min,
-                             children: const [
-                                 Text("Mario Room", 
-                                     textAlign: TextAlign.center, 
-                                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)
-                                 ),
-                                 SizedBox(height: 4),
-                                 Text("Press RIGHT Arrow to go back!", 
-                                     textAlign: TextAlign.center, 
-                                     style: TextStyle(fontSize: 14, color: Colors.white)
-                                 ),
-                             ]
-                         )
-                     )
-                 )
-             )
-        )
-      ],
+      )
     );
   }
 }
