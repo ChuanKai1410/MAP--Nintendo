@@ -363,21 +363,9 @@ class _CharacterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 100,
       height: 120,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.95),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 10,
-            offset: Offset(0, 5),
-          )
-        ],
-        border: Border.all(color: Colors.white, width: 2),
-      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
