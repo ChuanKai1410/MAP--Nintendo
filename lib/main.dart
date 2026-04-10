@@ -189,18 +189,33 @@ class _GameScreenState extends State<GameScreen> {
          
          Align(
              alignment: Alignment.topCenter,
-             child: Padding(
-                 padding: const EdgeInsets.all(40),
-                 child: Container(
-                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                   decoration: BoxDecoration(
-                     color: Colors.white70,
-                     borderRadius: BorderRadius.circular(20),
-                   ),
-                   child: Text("Pokémon Room\nMove: Left / Right Arrow Keys\nStep $position / ±3 to Change Rooms", 
-                       textAlign: TextAlign.center, 
-                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)
-                   ),
+             child: Container(
+                 decoration: const BoxDecoration(
+                     color: Colors.blueAccent,
+                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+                     boxShadow: [
+                         BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
+                     ]
+                 ),
+                 child: SafeArea(
+                     bottom: false,
+                     child: Padding(
+                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                         child: Column(
+                             mainAxisSize: MainAxisSize.min,
+                             children: [
+                                 const Text("Pokémon Room", 
+                                     textAlign: TextAlign.center, 
+                                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)
+                                 ),
+                                 const SizedBox(height: 4),
+                                 Text("Move: Left / Right Arrow Keys\nStep $position / ±3 to Change Rooms", 
+                                     textAlign: TextAlign.center, 
+                                     style: const TextStyle(fontSize: 14, color: Colors.white)
+                                 ),
+                             ]
+                         )
+                     )
                  )
              )
          )
@@ -257,18 +272,33 @@ class _GameScreenState extends State<GameScreen> {
 
         Align(
              alignment: Alignment.topCenter,
-             child: Padding(
-                 padding: const EdgeInsets.all(40),
-                 child: Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                     decoration: BoxDecoration(
-                         color: Colors.white70,
-                         borderRadius: BorderRadius.circular(20),
-                     ),
-                     child: const Text("Kirby Room\nPress LEFT Arrow to go back!", 
-                         textAlign: TextAlign.center, 
-                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)
-                     ),
+             child: Container(
+                 decoration: const BoxDecoration(
+                     color: Colors.pinkAccent,
+                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+                     boxShadow: [
+                         BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
+                     ]
+                 ),
+                 child: SafeArea(
+                     bottom: false,
+                     child: Padding(
+                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                         child: Column(
+                             mainAxisSize: MainAxisSize.min,
+                             children: const [
+                                 Text("Kirby Room", 
+                                     textAlign: TextAlign.center, 
+                                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)
+                                 ),
+                                 SizedBox(height: 4),
+                                 Text("Press LEFT Arrow to go back!", 
+                                     textAlign: TextAlign.center, 
+                                     style: TextStyle(fontSize: 14, color: Colors.white)
+                                 ),
+                             ]
+                         )
+                     )
                  )
              )
         )
@@ -328,18 +358,33 @@ class _GameScreenState extends State<GameScreen> {
 
         Align(
              alignment: Alignment.topCenter,
-             child: Padding(
-                 padding: const EdgeInsets.all(40),
-                 child: Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                     decoration: BoxDecoration(
-                         color: Colors.black54,
-                         borderRadius: BorderRadius.circular(20),
-                     ),
-                     child: const Text("Mario Room\nPress RIGHT Arrow to go back!", 
-                         textAlign: TextAlign.center, 
-                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)
-                     ),
+             child: Container(
+                 decoration: const BoxDecoration(
+                     color: Colors.redAccent,
+                     borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+                     boxShadow: [
+                         BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5))
+                     ]
+                 ),
+                 child: SafeArea(
+                     bottom: false,
+                     child: Padding(
+                         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                         child: Column(
+                             mainAxisSize: MainAxisSize.min,
+                             children: const [
+                                 Text("Mario Room", 
+                                     textAlign: TextAlign.center, 
+                                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)
+                                 ),
+                                 SizedBox(height: 4),
+                                 Text("Press RIGHT Arrow to go back!", 
+                                     textAlign: TextAlign.center, 
+                                     style: TextStyle(fontSize: 14, color: Colors.white)
+                                 ),
+                             ]
+                         )
+                     )
                  )
              )
         )
