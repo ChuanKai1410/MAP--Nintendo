@@ -164,9 +164,13 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
       Rect r = Rect.fromLTWH(test.dx, test.dy, 100, 120);
       bool valid = true;
       for (Rect obs in [titleRect, leftDoorRect, rightDoorRect, Rect.fromLTWH(_trainerPos.dx - 100, _trainerPos.dy - 100, 300, 320)]) {
-        if (r.overlaps(obs)) valid = false;
+        if (r.overlaps(obs)) {
+          valid = false;
+        }
       }
-      if (valid) return test;
+      if (valid) {
+        return test;
+      }
     }
     return Offset(_screenSize.width/2, _screenSize.height/2);
   }
